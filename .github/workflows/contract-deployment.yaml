@@ -1,0 +1,54 @@
+name: Contracts CD
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+      - name: Install Yarn
+        run: npm install -g yarn
+      - run: yarn
+      - run: yarn build
+      - name: Run contract tests
+        run: |
+          yarn test
+      - name: Uninstall Yarn
+        if: always()
+        run: npm uninstall -g yarn
+  build_and_deploy:
+    name: Build and Deploy
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+      - name: Install Yarn
+        run: npm install -g yarn
+      - run: yarn
+      - run: yarn build
+      - name: Deploy contract to Goerli
+        env:
+          RPC_ENDPOINT_ID: ${{ secrets.RPC_ENDPOINT_ID }}
+          MNEMONIC: ${{ secrets.MNEMONIC }}
+          INITIAL_INDEX: ${{ secrets.INITIAL_INDEX }}
+        run: |
+          npx hardhat deploy-ci --network goerli
+      - name: Look here for contract info
+        run: |
+          echo "Contract deployed on Goerli to `cat logs/deploy.json| jq -r '.contractAddresses'`"
+      - name: Uninstall Yarn
+        if: always()
+        run: npm uninstall -g yarn
